@@ -30,9 +30,10 @@ namespace Fungus.EditorUtils
 
         protected List<SerializedProperty> variableDataProps;
 
-        public override void OnEnable()
+        protected virtual void OnEnable()
         {
-            base.OnEnable();
+            if (NullTargetCheck()) // Check for an orphaned editor instance
+                return;
 
             variableProp = serializedObject.FindProperty("variable");
             setOperatorProp = serializedObject.FindProperty("setOperator");

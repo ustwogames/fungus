@@ -21,9 +21,10 @@ namespace Fungus.EditorUtils
         protected SerializedProperty stringParameterProp;
         protected SerializedProperty stringEventProp;
 
-        public override void OnEnable()
+        protected virtual void OnEnable()
         {
-            base.OnEnable();
+            if (NullTargetCheck()) // Check for an orphaned editor instance
+                return;
 
             descriptionProp = serializedObject.FindProperty("description");
             delayProp = serializedObject.FindProperty("delay");

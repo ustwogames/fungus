@@ -135,9 +135,6 @@ namespace Fungus.EditorUtils
         protected Block dragBlock;
         protected static FungusState fungusState;
 
-        static protected VariableListAdaptor variableListAdaptor;
-
-
         [MenuItem("Tools/Fungus/Flowchart Window")]
         static void Init()
         {
@@ -146,7 +143,6 @@ namespace Fungus.EditorUtils
 
         protected virtual void OnEnable()
         {
-
             // All block nodes use the same GUIStyle, but with a different background
             nodeStyle.border = new RectOffset(20, 20, 5, 5);
             nodeStyle.padding = nodeStyle.border;
@@ -228,16 +224,6 @@ namespace Fungus.EditorUtils
                 {
                     fungusState.SelectedFlowchart = fs;
                 }
-            }
-
-            if (fungusState.SelectedFlowchart == null)
-            {
-                variableListAdaptor = null;
-            }
-            else if (variableListAdaptor == null || variableListAdaptor.TargetFlowchart != fungusState.SelectedFlowchart)
-            {
-                var fsSO = new SerializedObject(fungusState.SelectedFlowchart);
-                variableListAdaptor = new VariableListAdaptor(fsSO.FindProperty("variables"), fungusState.SelectedFlowchart);
             }
 
             return fungusState.SelectedFlowchart;
@@ -347,7 +333,7 @@ namespace Fungus.EditorUtils
                 GUILayout.Label("No Flowchart scene object selected");
                 return;
             }
-            
+
             //target has changed, so clear the blockinspector
             if (flowchart != prevFlowchart)
             {
@@ -510,25 +496,9 @@ namespace Fungus.EditorUtils
                     {                        
                         GUILayout.Space(8);
 
-                        EditorGUI.BeginChangeCheck();
-
-                        if (variableListAdaptor != null)
-                        {
-                            if (variableListAdaptor.TargetFlowchart != null)
-                            {
-                                //440 - space for scrollbar
-                                variableListAdaptor.DrawVarList(400);
-                            }
-                            else
-                            {
-                                variableListAdaptor = null;
-                            }
-                        }
-
-                        if(EditorGUI.EndChangeCheck())
-                        {
-                            EditorUtility.SetDirty(flowchart);
-                        }
+                        FlowchartEditor flowchartEditor = Editor.CreateEditor (flowchart) as FlowchartEditor;
+                        flowchartEditor.DrawVariablesGUI(true, 0);
+                        DestroyImmediate(flowchartEditor);
 
                         Rect variableWindowRect = GUILayoutUtility.GetLastRect();
                         if (flowchart.VariablesExpanded && flowchart.Variables.Count > 0)

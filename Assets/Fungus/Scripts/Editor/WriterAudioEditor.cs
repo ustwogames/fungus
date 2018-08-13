@@ -3,6 +3,7 @@
 
 using UnityEditor;
 using UnityEngine;
+using Rotorz.ReorderableList;
 
 namespace Fungus.EditorUtils
 {
@@ -40,7 +41,8 @@ namespace Fungus.EditorUtils
             EditorGUILayout.PropertyField(audioModeProp);
             if ((AudioMode)audioModeProp.enumValueIndex == AudioMode.Beeps)
             {
-                EditorGUILayout.PropertyField(beepSoundsProp, new GUIContent("Beep Sounds", "A list of beep sounds to play at random"),true);
+                ReorderableListGUI.Title(new GUIContent("Beep Sounds", "A list of beep sounds to play at random"));
+                ReorderableListGUI.ListField(beepSoundsProp);
             }
             else
             {

@@ -9,6 +9,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
+using Rotorz.ReorderableList;
 using System.IO;
 using System.Reflection;
 
@@ -48,9 +49,6 @@ namespace Fungus.EditorUtils
         static List<System.Type> commandTypes;
         static List<System.Type> eventHandlerTypes;
 
-        private CommandListAdaptor commandListAdaptor;
-        private SerializedProperty commandListProperty;
-
         static void CacheEventHandlerTypes()
         {
             eventHandlerTypes = EditorExtensions.FindDerivedTypes(typeof(EventHandler)).ToList();
@@ -65,26 +63,11 @@ namespace Fungus.EditorUtils
 
         protected virtual void OnEnable()
         {
-            //this appears to happen when leaving playmode
-            try
-            {
-                if (serializedObject == null)
-                    return;
-            }
-            catch (Exception)
-            {
-                return;
-            }
-
             upIcon = FungusEditorResources.Up;
             downIcon = FungusEditorResources.Down;
             addIcon = FungusEditorResources.Add;
             duplicateIcon = FungusEditorResources.Duplicate;
             deleteIcon = FungusEditorResources.Delete;
-
-            commandListProperty = serializedObject.FindProperty("commandList");
-
-            commandListAdaptor = new CommandListAdaptor(target as Block, commandListProperty);
 
             CacheEventHandlerTypes();
         }
@@ -114,8 +97,6 @@ namespace Fungus.EditorUtils
         {
             serializedObject.Update();
 
-            var block = target as Block;
-
             // Execute any queued cut, copy, paste, etc. operations from the prevous GUI update
             // We need to defer applying these operations until the following update because
             // the ReorderableList control emits GUI errors if you clear the list in the same frame
@@ -132,6 +113,9 @@ namespace Fungus.EditorUtils
                 actionList.Clear();
             }
 
+            var block = target as Block;
+
+            SerializedProperty commandListProperty = serializedObject.FindProperty("commandList");
 
             if (block == flowchart.SelectedBlock)
             {
@@ -166,7 +150,20 @@ namespace Fungus.EditorUtils
                     command.ParentBlock = block;
                 }
 
-                commandListAdaptor.DrawCommandList();
+                ReorderableListGUI.Title("Commands");
+                CommandListAdaptor adaptor = new CommandListAdaptor(commandListProperty, 0);
+                adaptor.nodeRect = block._NodeRect;
+
+                ReorderableListFlags flags = ReorderableListFlags.HideAddButton | ReorderableListFlags.HideRemoveButtons | ReorderableListFlags.DisableContextMenu;
+
+                if (block.CommandList.Count == 0)
+                {
+                    EditorGUILayout.HelpBox("Press the + button below to add a command to the list.", MessageType.Info);
+                }
+                else
+                {
+                    ReorderableListControl.DrawControlFromState(adaptor, null, flags);
+                }
 
                 // EventType.contextClick doesn't register since we moved the Block Editor to be inside
                 // a GUI Area, no idea why. As a workaround we just check for right click instead.

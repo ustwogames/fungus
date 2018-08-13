@@ -15,10 +15,11 @@ namespace Fungus.EditorUtils
         protected SerializedProperty useDefaultSettingsProp;
         protected SerializedProperty fadeDurationProp;
         protected SerializedProperty waitUntilFinishedProp;
-
-        public override void OnEnable()
+        
+        protected virtual void OnEnable()
         {
-            base.OnEnable();
+            if (NullTargetCheck()) // Check for an orphaned editor instance
+                return;
 
             displayProp = serializedObject.FindProperty("display");
             stageProp = serializedObject.FindProperty("stage");

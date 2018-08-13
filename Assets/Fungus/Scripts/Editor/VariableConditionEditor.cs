@@ -15,9 +15,10 @@ namespace Fungus.EditorUtils
 
         protected Dictionary<System.Type, SerializedProperty> propByVariableType;
 
-        public override void OnEnable()
+        protected virtual void OnEnable()
         {
-            base.OnEnable();
+            if (NullTargetCheck()) // Check for an orphaned editor instance
+                return;
 
             variableProp = serializedObject.FindProperty("variable");
             compareOperatorProp = serializedObject.FindProperty("compareOperator");

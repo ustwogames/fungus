@@ -1,177 +1,124 @@
 // This code is part of the Fungus library (http://fungusgames.com) maintained by Chris Gregan (http://twitter.com/gofungus).
 // It is released for free under the MIT open source license (https://github.com/snozbot/fungus/blob/master/LICENSE)
 
+// Copyright (c) 2012-2013 Rotorz Limited. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 using UnityEngine;
 using UnityEditor;
 using System;
-using UnityEditorInternal;
-using System.Collections.Generic;
+using Rotorz.ReorderableList;
 
 namespace Fungus.EditorUtils
 {
-    public class VariableListAdaptor
+    public class VariableListAdaptor : IReorderableListAdaptor
     {
-        protected class AddVariableInfo
-        {
-            public Flowchart flowchart;
-            public System.Type variableType;
-        }
 
         public static readonly int DefaultWidth = 80 + 100 + 140 + 60;
-        public static readonly int ScrollSpacer = 0;
-        public static readonly int ReorderListSkirts = 50;
+        public static readonly int ScrollSpacer = 8;
+        public static readonly int ReorderListSkirts = 70;
 
         protected SerializedProperty _arrayProperty;
 
         public float fixedItemHeight;
         public int widthOfList;
 
-        private ReorderableList list;
-        public Flowchart TargetFlowchart { get; private set; }
 
         public SerializedProperty this[int index]
         {
             get { return _arrayProperty.GetArrayElementAtIndex(index); }
         }
 
-        public Variable GetVarAt(int index)
+        public SerializedProperty arrayProperty
         {
-            if (list.list != null)
-                return list.list[index] as Variable;
-            else
-                return this[index].objectReferenceValue as Variable;
+            get { return _arrayProperty; }
         }
 
-        public VariableListAdaptor(SerializedProperty arrayProperty, Flowchart _targetFlowchart)
+        public VariableListAdaptor(SerializedProperty arrayProperty, float fixedItemHeight, int widthOfList)
         {
             if (arrayProperty == null)
                 throw new ArgumentNullException("Array property was null.");
             if (!arrayProperty.isArray)
                 throw new InvalidOperationException("Specified serialized propery is not an array.");
 
-            this.TargetFlowchart = _targetFlowchart;
-            this.fixedItemHeight = 0;
             this._arrayProperty = arrayProperty;
+            this.fixedItemHeight = fixedItemHeight;
             this.widthOfList = widthOfList - ScrollSpacer;
-
-            list = new ReorderableList(arrayProperty.serializedObject, arrayProperty, true, false, true, true);
-            list.drawElementCallback = DrawItem;
-            list.onRemoveCallback = RemoveItem;
-            list.onAddCallback = AddButton;
-            list.onRemoveCallback = RemoveItem;
-            list.elementHeightCallback = GetElementHeight;
         }
 
-        private float GetElementHeight(int index)
+        public VariableListAdaptor(SerializedProperty arrayProperty) : this(arrayProperty, 0f, DefaultWidth)
         {
-            return /*EditorGUI.GetPropertyHeight(this[index], null, true) +*/ EditorGUIUtility.singleLineHeight;
         }
 
-        private void RemoveItem(ReorderableList list)
+        public int Count
         {
-            int index = list.index;
+            get { return _arrayProperty.arraySize; }
+        }
+
+        public virtual bool CanDrag(int index)
+        {
+            return true;
+        }
+
+        public virtual bool CanRemove(int index)
+        {
+            return true;
+        }
+
+        public void Add()
+        {
+            int newIndex = _arrayProperty.arraySize;
+            ++_arrayProperty.arraySize;
+            _arrayProperty.GetArrayElementAtIndex(newIndex).ResetValue();
+        }
+
+        public void Insert(int index)
+        {
+            _arrayProperty.InsertArrayElementAtIndex(index);
+            _arrayProperty.GetArrayElementAtIndex(index).ResetValue();
+        }
+
+        public void Duplicate(int index)
+        {
+            _arrayProperty.InsertArrayElementAtIndex(index);
+        }
+
+        public void Remove(int index)
+        {
             // Remove the Fungus Variable component
-            Variable variable = this[index].objectReferenceValue as Variable;
+            Variable variable = _arrayProperty.GetArrayElementAtIndex(index).objectReferenceValue as Variable;
             Undo.DestroyObjectImmediate(variable);
+
+            _arrayProperty.GetArrayElementAtIndex(index).objectReferenceValue = null;
+            _arrayProperty.DeleteArrayElementAtIndex(index);
         }
 
-        private void AddButton(ReorderableList list)
+        public void Move(int sourceIndex, int destIndex)
         {
-            GenericMenu menu = new GenericMenu();
-            List<System.Type> types = FlowchartEditor.FindAllDerivedTypes<Variable>();
-
-            // Add variable types without a category
-            foreach (var type in types)
-            {
-                VariableInfoAttribute variableInfo = VariableEditor.GetVariableInfo(type);
-                if (variableInfo == null ||
-                    variableInfo.Category != "")
-                {
-                    continue;
-                }
-
-                AddVariableInfo addVariableInfo = new AddVariableInfo();
-                addVariableInfo.flowchart = TargetFlowchart;
-                addVariableInfo.variableType = type;
-
-                GUIContent typeName = new GUIContent(variableInfo.VariableType);
-
-                menu.AddItem(typeName, false, AddVariable, addVariableInfo);
-            }
-
-            // Add types with a category
-            foreach (var type in types)
-            {
-                VariableInfoAttribute variableInfo = VariableEditor.GetVariableInfo(type);
-                if (variableInfo == null ||
-                    variableInfo.Category == "")
-                {
-                    continue;
-                }
-
-                AddVariableInfo info = new AddVariableInfo();
-                info.flowchart = TargetFlowchart;
-                info.variableType = type;
-
-                GUIContent typeName = new GUIContent(variableInfo.Category + "/" + variableInfo.VariableType);
-
-                menu.AddItem(typeName, false, AddVariable, info);
-            }
-
-            menu.ShowAsContext();
+            if (destIndex > sourceIndex)
+                --destIndex;
+            _arrayProperty.MoveArrayElement(sourceIndex, destIndex);
         }
 
-        protected virtual void AddVariable(object obj)
+        public void Clear()
         {
-            AddVariableInfo addVariableInfo = obj as AddVariableInfo;
-            if (addVariableInfo == null)
-            {
-                return;
-            }
-
-            var flowchart = addVariableInfo.flowchart;
-            System.Type variableType = addVariableInfo.variableType;
-
-            Undo.RecordObject(flowchart, "Add Variable");
-            Variable newVariable = flowchart.gameObject.AddComponent(variableType) as Variable;
-            newVariable.Key = flowchart.GetUniqueVariableKey("");
-            flowchart.Variables.Add(newVariable);
-
-            // Because this is an async call, we need to force prefab instances to record changes
-            PrefabUtility.RecordPrefabInstancePropertyModifications(flowchart);
+            _arrayProperty.ClearArray();
         }
 
-        public void DrawVarList(int w)
+        public void BeginGUI()
+        { }
+
+        public void EndGUI()
+        { }
+
+        public virtual void DrawItemBackground(Rect position, int index)
         {
-            //we want to eat the throw that occurs when switching back to editor from play
-            try
-            {
-                if (_arrayProperty == null || _arrayProperty.serializedObject == null)
-                    return;
-
-                _arrayProperty.serializedObject.Update();
-                this.widthOfList = (w == 0 ? VariableListAdaptor.DefaultWidth : w) - ScrollSpacer;
-
-                if (GUILayout.Button("Variables"))
-                {
-                    _arrayProperty.isExpanded = !_arrayProperty.isExpanded;
-                }
-
-                if (_arrayProperty.isExpanded)
-                {
-                    list.DoLayoutList();
-                }
-                _arrayProperty.serializedObject.ApplyModifiedProperties();
-            }
-            catch (Exception)
-            {
-            }
         }
 
-        public void DrawItem(Rect position, int index, bool selected, bool focused)
+        public void DrawItem(Rect position, int index)
         {
-            Variable variable = GetVarAt(index);// this[index].objectReferenceValue as Variable;
+            Variable variable = this[index].objectReferenceValue as Variable;
 
             if (variable == null)
             {
@@ -205,7 +152,7 @@ namespace Fungus.EditorUtils
                 return;
             }
 
-            var flowchart = TargetFlowchart;
+            var flowchart = FlowchartWindow.GetFlowchart();
             if (flowchart == null)
             {
                 return;
@@ -248,7 +195,7 @@ namespace Fungus.EditorUtils
 
             // To access properties in a monobehavior, you have to new a SerializedObject
             // http://answers.unity3d.com/questions/629803/findrelativeproperty-never-worked-for-me-how-does.html
-            SerializedObject variableObject = new SerializedObject(variable);
+            SerializedObject variableObject = new SerializedObject(this[index].objectReferenceValue);
 
             variableObject.Update();
 
@@ -292,6 +239,14 @@ namespace Fungus.EditorUtils
             variableObject.ApplyModifiedProperties();
 
             GUI.backgroundColor = Color.white;
+        }
+
+        public virtual float GetItemHeight(int index)
+        {
+            return fixedItemHeight != 0f
+                ? fixedItemHeight
+                    : EditorGUI.GetPropertyHeight(this[index], GUIContent.none, false)
+                    ;
         }
     }
 }

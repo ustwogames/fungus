@@ -3,6 +3,7 @@
 
 using UnityEditor;
 using UnityEngine;
+using Rotorz.ReorderableList;
 
 namespace Fungus.EditorUtils
 {
@@ -59,7 +60,8 @@ namespace Fungus.EditorUtils
                     GUI.DrawTexture(previewRect,characterTexture,ScaleMode.ScaleToFit,true,aspect);
             }
 
-            EditorGUILayout.PropertyField(portraitsProp, new GUIContent("Portraits", "Character image sprites to display in the dialog"), true);
+            ReorderableListGUI.Title(new GUIContent("Portraits", "Character image sprites to display in the dialog"));
+            ReorderableListGUI.ListField(portraitsProp);
 
             EditorGUILayout.HelpBox("All portrait images should use the exact same resolution to avoid positioning and tiling issues.", MessageType.Info);
 

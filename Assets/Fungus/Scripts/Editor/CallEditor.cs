@@ -15,9 +15,10 @@ namespace Fungus.EditorUtils
         protected SerializedProperty startIndexProp;
         protected SerializedProperty callModeProp;
 
-        public override void OnEnable()
+        protected virtual void OnEnable()
         {
-            base.OnEnable();
+            if (NullTargetCheck()) // Check for an orphaned editor instance
+                return;
 
             targetFlowchartProp = serializedObject.FindProperty("targetFlowchart");
             targetBlockProp = serializedObject.FindProperty("targetBlock");
