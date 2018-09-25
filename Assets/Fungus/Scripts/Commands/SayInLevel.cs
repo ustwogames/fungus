@@ -9,14 +9,16 @@ namespace Fungus
     /// Writes text in a dialog box.
     /// </summary>
     [CommandInfo("Narrative",
-                 "Say",
-                 "Writes text in a dialog box.")]
+                 "SayInLevel",
+                 "Writes text to world.")]
     [AddComponentMenu("")]
-    public class Say : Command, ILocalizable
+    public class SayInLevel : Command
     {
         // Removed this tooltip as users's reported it obscures the text box
         [UnityCommon.GameTextIdAutoComplete]
         [SerializeField] protected string storyText = "";
+
+        [SerializeField] protected Transform aboveTransform;
 
         [Tooltip("Notes about this story text for other authors, localization, etc.")]
         [SerializeField] protected string description = "";
@@ -53,6 +55,8 @@ namespace Fungus
 
         [Tooltip("Wait for the Voice Over to complete before continuing")]
         [SerializeField] protected bool waitForVO = false;
+        [SerializeField] protected UINarrativeManager.Characters helchar = UINarrativeManager.Characters.Helena;
+
 
         //add wait for vo that overrides stopvo
 
@@ -64,7 +68,7 @@ namespace Fungus
 
         [SerializeField] protected bool repair_dontdisplay = false;
 
-        [SerializeField] protected Emotion animationEmotion = Emotion.None;
+
 
 
         protected int executionCount;
@@ -98,24 +102,14 @@ namespace Fungus
 
             executionCount++;
 
-            Transform contentTransform = FindObjectOfType<NarrativeContentTransform>().transform;
+            UINarrativeManager inGamePrompt = GameObject.FindObjectOfType<UINarrativeManager>();
+            SayDialog sayDialog = inGamePrompt.ShowPromptMessage(helchar);
 
-            if (character.SetSayDialog != null)
-            {
-                SayDialog dialog = Instantiate(character.SetSayDialog, Vector3.zero, Quaternion.identity, contentTransform);
-                SayDialog.ActiveSayDialog = dialog;
-                FindObjectOfType<RepairNarrativeLog>().FocusOnLastMessage();
-            }
-
-            SayDialog sayDialog = SayDialog.GetSayDialog();
             if (sayDialog == null)
             {
                 Continue();
                 return;
             }
-
-            HelenaSpineAnimator animator = FindObjectOfType<HelenaSpineAnimator>();
-            animator.SetEmotion(animationEmotion);
 
             if (waitForDuration)
             {
@@ -128,8 +122,6 @@ namespace Fungus
             var flowchart = GetFlowchart();
 
             sayDialog.SetActive(true);
-
-            sayDialog.SetCharacter(character);
 
             string displayText = UnityCommon.GameTextService.Instance.GetText(storyText);
 
@@ -145,9 +137,6 @@ namespace Fungus
             }
 
             string subbedText = flowchart.SubstituteVariables(displayText);
-            UINarrativeManager narrativeManager = GameObject.FindObjectOfType<UINarrativeManager>();
-
-            narrativeManager.NotifyMessage();
 
             if (waitForDuration)
             {

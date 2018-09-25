@@ -7,8 +7,8 @@ using System.Collections.Generic;
 
 namespace Fungus.EditorUtils
 {
-    [CustomEditor(typeof(Say))]
-    public class SayEditor : CommandEditor
+    [CustomEditor(typeof(SayInLevel))]
+    public class SayInLevelEditor : CommandEditor
     {
         public static bool showTagHelp;
         public Texture2D blackTex;
@@ -85,7 +85,8 @@ namespace Fungus.EditorUtils
         protected SerializedProperty waitForDurationProp;
         protected SerializedProperty durationProp;
         protected SerializedProperty repair_dontDisplay;
-        protected SerializedProperty emotionProp;
+        protected SerializedProperty aboveTransformProp;
+        protected SerializedProperty helCharProp;
 
 
         protected virtual void OnEnable()
@@ -109,7 +110,8 @@ namespace Fungus.EditorUtils
             waitForDurationProp = serializedObject.FindProperty("waitForDuration");
             durationProp = serializedObject.FindProperty("_duration");
             repair_dontDisplay = serializedObject.FindProperty("repair_dontdisplay");
-            emotionProp = serializedObject.FindProperty("animationEmotion");
+            aboveTransformProp = serializedObject.FindProperty("aboveTransform");
+            helCharProp = serializedObject.FindProperty("helchar");
 
 
             if (blackTex == null)
@@ -127,44 +129,6 @@ namespace Fungus.EditorUtils
         {
             serializedObject.Update();
 
-            bool showPortraits = false;
-            CommandEditor.ObjectField<Character>(characterProp,
-                                                new GUIContent("Character", "Character that is speaking"),
-                                                new GUIContent("<None>"),
-                                                Character.ActiveCharacters);
-
-            EditorGUILayout.BeginHorizontal();
-            EditorGUILayout.PrefixLabel(" ");
-            characterProp.objectReferenceValue = (Character)EditorGUILayout.ObjectField(characterProp.objectReferenceValue, typeof(Character), true);
-            EditorGUILayout.EndHorizontal();
-
-            serializedObject.ApplyModifiedProperties();
-            serializedObject.Update();
-
-            Say t = target as Say;
-
-            // Only show portrait selection if...
-            if (t._Character != null &&              // Character is selected
-                t._Character.Portraits != null &&    // Character has a portraits field
-                t._Character.Portraits.Count > 0)   // Selected Character has at least 1 portrait
-            {
-                showPortraits = true;
-            }
-
-            if (showPortraits)
-            {
-                CommandEditor.ObjectField<Sprite>(portraitProp,
-                                                  new GUIContent("Portrait", "Portrait representing speaking character"),
-                                                  new GUIContent("<None>"),
-                                                  t._Character.Portraits);
-            }
-            else
-            {
-                if (!t.ExtendPrevious)
-                {
-                    t.Portrait = null;
-                }
-            }
 
             EditorGUILayout.PropertyField(storyTextProp);
 
@@ -172,27 +136,13 @@ namespace Fungus.EditorUtils
             EditorGUILayout.TextArea(UnityCommon.GameTextService.GetTextForEditor(storyTextProp.stringValue));
             GUI.enabled = true;
 
-            EditorGUILayout.BeginHorizontal();
-
-            EditorGUILayout.PropertyField(extendPreviousProp);
-
-            GUILayout.FlexibleSpace();
-
-            if (GUILayout.Button(new GUIContent("Tag Help", "View available tags"), new GUIStyle(EditorStyles.miniButton)))
-            {
-                showTagHelp = !showTagHelp;
-            }
-            EditorGUILayout.EndHorizontal();
-
-            if (showTagHelp)
-            {
-                DrawTagHelpLabel();
-            }
-
             EditorGUILayout.Separator();
 
-            EditorGUILayout.PropertyField(emotionProp, new GUIContent("Emotional State", "NONE means it won't change"));
-            EditorGUILayout.PropertyField(voiceOverClipProp, new GUIContent("Voice Over Clip", "Voice over audio to play when the text is displayed"));
+            EditorGUILayout.PropertyField(voiceOverClipProp,
+                                          new GUIContent("Voice Over Clip", "Voice over audio to play when the text is displayed"));
+
+            EditorGUILayout.PropertyField(helCharProp,
+                                          new GUIContent("Character"));
 
             /*EditorGUILayout.PropertyField(showAlwaysProp);
 
@@ -214,21 +164,10 @@ namespace Fungus.EditorUtils
             // EditorGUILayout.PropertyField(waitForClickProp);
             // EditorGUILayout.PropertyField(stopVoiceoverProp);
             // EditorGUILayout.PropertyField(setSayDialogProp);
-            EditorGUILayout.PropertyField(waitForVOProp);
+            //EditorGUILayout.PropertyField(waitForVOProp);
             //EditorGUILayout.PropertyField(waitForDurationProp);
-            EditorGUILayout.PropertyField(durationProp);
+            //EditorGUILayout.PropertyField(durationProp);
             // EditorGUILayout.PropertyField(repair_dontDisplay);
-
-            if (showPortraits && t.Portrait != null)
-            {
-                Texture2D characterTexture = t.Portrait.texture;
-                float aspect = (float)characterTexture.width / (float)characterTexture.height;
-                Rect previewRect = GUILayoutUtility.GetAspectRect(aspect, GUILayout.Width(100), GUILayout.ExpandWidth(true));
-                if (characterTexture != null)
-                {
-                    GUI.DrawTexture(previewRect, characterTexture, ScaleMode.ScaleToFit, true, aspect);
-                }
-            }
 
             serializedObject.ApplyModifiedProperties();
         }
