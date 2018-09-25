@@ -8,14 +8,14 @@ namespace Fungus
     /// <summary>
     /// Writes text in a dialog box.
     /// </summary>
-    [CommandInfo("Narrative",
-                 "Say",
+    [CommandInfo("Narrative", 
+                 "Say", 
                  "Writes text in a dialog box.")]
     [AddComponentMenu("")]
     public class Say : Command, ILocalizable
     {
         // Removed this tooltip as users's reported it obscures the text box
-        [UnityCommon.GameTextIdAutoComplete]
+        [TextArea(5,10)]
         [SerializeField] protected string storyText = "";
 
         [Tooltip("Notes about this story text for other authors, localization, etc.")]
@@ -49,23 +49,12 @@ namespace Fungus
         [SerializeField] protected bool stopVoiceover = true;
 
         [Tooltip("Wait for the Voice Over to complete before continuing")]
-        [SerializeField] protected bool waitForDuration = true;
-
-        [Tooltip("Wait for the Voice Over to complete before continuing")]
         [SerializeField] protected bool waitForVO = false;
 
         //add wait for vo that overrides stopvo
 
         [Tooltip("Sets the active Say dialog with a reference to a Say Dialog object in the scene. All story text will now display using this Say Dialog.")]
         [SerializeField] protected SayDialog setSayDialog;
-
-        [Tooltip("Duration to wait for")]
-        [SerializeField] protected FloatData _duration = new FloatData(1);
-
-        [SerializeField] protected bool repair_dontdisplay = false;
-
-        [SerializeField] protected Emotion animationEmotion = Emotion.None;
-
 
         protected int executionCount;
 
@@ -88,8 +77,6 @@ namespace Fungus
 
         public override void OnEnter()
         {
-            waitForDuration = true;
-
             if (!showAlways && executionCount >= showCount)
             {
                 Continue();
@@ -98,40 +85,32 @@ namespace Fungus
 
             executionCount++;
 
-            Transform contentTransform = FindObjectOfType<NarrativeContentTransform>().transform;
-
-            if (character.SetSayDialog != null)
+            // Override the active say dialog if needed
+            if (character != null && character.SetSayDialog != null)
             {
-                SayDialog dialog = Instantiate(character.SetSayDialog, Vector3.zero, Quaternion.identity, contentTransform);
-                SayDialog.ActiveSayDialog = dialog;
-                FindObjectOfType<RepairNarrativeLog>().FocusOnLastMessage();
+                SayDialog.ActiveSayDialog = character.SetSayDialog;
             }
 
-            SayDialog sayDialog = SayDialog.GetSayDialog();
+            if (setSayDialog != null)
+            {
+                SayDialog.ActiveSayDialog = setSayDialog;
+            }
+
+            var sayDialog = SayDialog.GetSayDialog();
             if (sayDialog == null)
             {
                 Continue();
                 return;
             }
-
-            HelenaSpineAnimator animator = FindObjectOfType<HelenaSpineAnimator>();
-            animator.SetEmotion(animationEmotion);
-
-            if (waitForDuration)
-            {
-                bool useVOTime = waitForVO && voiceOverClip != null;
-                float duration = useVOTime ? Mathf.Max(_duration.Value, voiceOverClip.length) : _duration.Value;
-                D.Log("NAR: Playing For : ", duration, "s", "Use VO time : ", useVOTime);
-                Invoke("OnWaitComplete", duration);
-            }
-
+    
             var flowchart = GetFlowchart();
 
             sayDialog.SetActive(true);
 
             sayDialog.SetCharacter(character);
+            sayDialog.SetCharacterImage(portrait);
 
-            string displayText = UnityCommon.GameTextService.Instance.GetText(storyText);
+            string displayText = storyText;
 
             var activeCustomTags = CustomTag.activeCustomTags;
             for (int i = 0; i < activeCustomTags.Count; i++)
@@ -145,27 +124,16 @@ namespace Fungus
             }
 
             string subbedText = flowchart.SubstituteVariables(displayText);
-            UINarrativeManager narrativeManager = GameObject.FindObjectOfType<UINarrativeManager>();
 
-            narrativeManager.NotifyMessage();
-
-            if (waitForDuration)
-            {
-                sayDialog.Say(subbedText, !extendPrevious, waitForClick, fadeWhenDone, stopVoiceover, waitForVO, voiceOverClip, null, forceNoUI: true);
-            }
-            else
-            {
-                sayDialog.Say(subbedText, !extendPrevious, waitForClick, fadeWhenDone, stopVoiceover, waitForVO, voiceOverClip, delegate
-                {
-                    Continue();
-                }, forceNoUI: true);
-            }
+            sayDialog.Say(subbedText, !extendPrevious, waitForClick, fadeWhenDone, stopVoiceover, waitForVO, voiceOverClip, delegate {
+                Continue();
+            });
         }
 
         public override string GetSummary()
         {
             string namePrefix = "";
-            if (character != null)
+            if (character != null) 
             {
                 namePrefix = character.NameText + ": ";
             }
@@ -173,11 +141,7 @@ namespace Fungus
             {
                 namePrefix = "EXTEND" + ": ";
             }
-#if UNITY_EDITOR
-            return namePrefix + "\"" + UnityCommon.GameTextService.GetTextForEditor(storyText) + "\"";
-#else
-        return "";
-#endif
+            return namePrefix + "\"" + storyText + "\"";
         }
 
         public override Color GetButtonColor()
@@ -201,30 +165,11 @@ namespace Fungus
             sayDialog.Stop();
         }
 
-        protected virtual void OnWaitComplete()
-        {
-            var sayDialog = SayDialog.GetSayDialog();
-            if (sayDialog == null)
-            {
-                return;
-            }
-
-            sayDialog.Stop();
-            sayDialog.FadeWhenDone = true;
-            Continue();
-        }
-
         #endregion
 
         #region ILocalizable implementation
 
         public virtual string GetStandardText()
-        {
-            return UnityCommon.GameTextService.Instance.GetText(storyText);
-        }
-
-
-        public virtual string GetTextID()
         {
             return storyText;
         }
@@ -238,12 +183,7 @@ namespace Fungus
         {
             return description;
         }
-
-        public virtual void SetAudioClip(AudioClip clip)
-        {
-            voiceOverClip = clip;
-        }
-
+        
         public virtual string GetStringId()
         {
             // String id for Say commands is SAY.<Localization Id>.<Command id>.[Character Name]
